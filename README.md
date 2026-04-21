@@ -114,6 +114,8 @@ VITE_CLOUDINARY_CLOUD_NAME="cloud-name"
    - Build command: `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`
    - Start command: `npm run start`
 3. Configura las variables de entorno del backend.
+4. No configures `NODE_ENV` manualmente en el dashboard de Render.
+   Render ya lo establece como `production` en runtime; si lo fuerzas en build puedes dejar fuera `devDependencies` necesarias para compilar TypeScript, como `@types/node`.
 
 ### Vercel
 

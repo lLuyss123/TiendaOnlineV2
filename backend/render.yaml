@@ -6,6 +6,3 @@ services:
     rootDir: .
     buildCommand: npm install --include=dev && npm run build --workspace backend
     startCommand: npm run start --workspace backend
-    envVars:
-      - key: NODE_ENV
-        value: production

@@ -8,7 +8,6 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { currency, getPrimaryProductImage } from "@/lib/utils";
 import { adminService } from "@/services/admin";
-import { shopService } from "@/services/shop";
 
 type ProductFiltersState = {
   q: string;
@@ -18,6 +17,7 @@ type ProductFiltersState = {
   minPrice: string;
   maxPrice: string;
   sort: string;
+  estado: string;
 };
 
 const emptyFilters: ProductFiltersState = {
@@ -27,14 +27,15 @@ const emptyFilters: ProductFiltersState = {
   etiqueta: "",
   minPrice: "",
   maxPrice: "",
-  sort: "latest"
+  sort: "latest",
+  estado: "todos"
 };
 
 export const AdminProductsPage = () => {
   const [filters, setFilters] = useState<ProductFiltersState>(emptyFilters);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "success" | "error">("success");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingState, setTogglingState] = useState<{ productId: string; nextActive: boolean } | null>(null);
   const deferredSearch = useDeferredValue(filters.q);
 
   const searchParams = useMemo(() => {
@@ -68,10 +69,15 @@ export const AdminProductsPage = () => {
       params.set("sort", filters.sort);
     }
 
+    if (filters.estado && filters.estado !== "todos") {
+      params.set("estado", filters.estado);
+    }
+
     return params;
   }, [
     deferredSearch,
     filters.categoria,
+    filters.estado,
     filters.etiqueta,
     filters.marca,
     filters.maxPrice,
@@ -81,7 +87,7 @@ export const AdminProductsPage = () => {
 
   const productsQuery = useQuery({
     queryKey: ["admin-products", searchParams.toString()],
-    queryFn: () => shopService.listProducts(searchParams)
+    queryFn: () => adminService.listProducts(searchParams)
   });
 
   const activeFilterCount = [
@@ -91,24 +97,25 @@ export const AdminProductsPage = () => {
     filters.etiqueta,
     filters.minPrice,
     filters.maxPrice,
-    filters.sort !== "latest" ? filters.sort : ""
+    filters.sort !== "latest" ? filters.sort : "",
+    filters.estado !== "todos" ? filters.estado : ""
   ].filter(Boolean).length;
 
-  const handleDeleteProduct = async (productId: string, productName: string) => {
-    setDeletingId(productId);
-    setMessage(`Desactivando ${productName}...`);
+  const handleToggleProduct = async (productId: string, productName: string, nextActive: boolean) => {
+    setTogglingState({ productId, nextActive });
+    setMessage(`${nextActive ? "Activando" : "Desactivando"} ${productName}...`);
     setMessageTone("info");
 
     try {
-      await adminService.deleteProduct(productId);
+      await adminService.updateProductActive(productId, nextActive);
       await productsQuery.refetch();
-      setMessage(`${productName} se desactivo correctamente.`);
+      setMessage(`${productName} se ${nextActive ? "activo" : "desactivo"} correctamente.`);
       setMessageTone("success");
     } catch {
-      setMessage(`No pudimos desactivar ${productName}.`);
+      setMessage(`No pudimos ${nextActive ? "activar" : "desactivar"} ${productName}.`);
       setMessageTone("error");
     } finally {
-      setDeletingId(null);
+      setTogglingState(null);
     }
   };
 
@@ -135,7 +142,7 @@ export const AdminProductsPage = () => {
           <div>
             <p className="text-sm font-semibold text-slate-950 dark:text-white">Filtrar productos</p>
             <p className="text-sm text-slate-500 dark:text-slate-300">
-              Busca por nombre y acota por marca, categoria, etiqueta o rango de precio.
+              Busca por nombre y acota por marca, categoria, etiqueta, estado o rango de precio.
             </p>
           </div>
           <Button
@@ -233,6 +240,18 @@ export const AdminProductsPage = () => {
               <option value="stock">Mayor stock</option>
             </select>
           </label>
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>Estado</span>
+            <select
+              className="w-full rounded-full border border-slate-200 bg-white/90 px-4 py-3 dark:border-white/10 dark:bg-white/5"
+              value={filters.estado}
+              onChange={(event) => setFilters((current) => ({ ...current, estado: event.target.value }))}
+            >
+              <option value="todos">Todos</option>
+              <option value="activos">Activos</option>
+              <option value="inactivos">Inactivos</option>
+            </select>
+          </label>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-300">
@@ -275,6 +294,9 @@ export const AdminProductsPage = () => {
                 <p className="text-sm text-slate-500 dark:text-slate-300">
                   {product.marca} · {product.categoria}
                 </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                  {product.activo ? "Activo" : "Inactivo"}
+                </p>
                 {product.tags.length ? (
                   <div className="flex flex-wrap gap-2">
                     {product.tags.slice(0, 4).map((tag) => (
@@ -296,16 +318,22 @@ export const AdminProductsPage = () => {
 
               <div className="flex gap-2">
                 <Link to={`/admin/productos/editar/${product.id}`}>
-                  <Button variant="secondary" disabled={Boolean(deletingId)}>
+                  <Button variant="secondary" disabled={Boolean(togglingState)}>
                     Editar
                   </Button>
                 </Link>
                 <Button
-                  variant="danger"
-                  disabled={Boolean(deletingId)}
-                  onClick={() => void handleDeleteProduct(product.id, product.nombre)}
+                  variant={product.activo ? "danger" : "secondary"}
+                  disabled={Boolean(togglingState)}
+                  onClick={() => void handleToggleProduct(product.id, product.nombre, !product.activo)}
                 >
-                  {deletingId === product.id ? "Desactivando..." : "Desactivar"}
+                  {togglingState?.productId === product.id
+                    ? togglingState.nextActive
+                      ? "Activando..."
+                      : "Desactivando..."
+                    : product.activo
+                      ? "Desactivar"
+                      : "Activar"}
                 </Button>
               </div>
             </div>

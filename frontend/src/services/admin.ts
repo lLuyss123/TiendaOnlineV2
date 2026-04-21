@@ -5,6 +5,7 @@ import type {
   BlogPost,
   Coupon,
   Order,
+  PaginatedResponse,
   Permission,
   Product,
   ReviewReply,
@@ -42,6 +43,9 @@ export const adminService = {
     apiFetch<{ items: Array<{ id: string; nombre: string; email: string; permisos: Permission[] }> }>(
       "/api/admin/sub-admins"
     ),
+  listProducts: (params = new URLSearchParams()) =>
+    apiFetch<PaginatedResponse<Product>>(`/api/admin/productos?${params.toString()}`),
+  getProduct: (id: string) => apiFetch<{ item: Product }>(`/api/admin/productos/${id}`),
   listTags: () => apiFetch<{ items: Tag[] }>("/api/admin/etiquetas"),
   createTag: (payload: { nombre: string; color: string; icono: string }) =>
     apiFetch<{ item: Tag }>("/api/admin/etiquetas", {
@@ -66,6 +70,11 @@ export const adminService = {
     apiFetch<{ item: Product }>(`/api/admin/productos/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload)
+    }),
+  updateProductActive: (id: string, activo: boolean) =>
+    apiFetch<{ item: Product; message: string }>(`/api/admin/productos/${id}/activo`, {
+      method: "PUT",
+      body: JSON.stringify({ activo })
     }),
   deleteProduct: (id: string) =>
     apiFetch<{ item: Product }>(`/api/admin/productos/${id}`, {

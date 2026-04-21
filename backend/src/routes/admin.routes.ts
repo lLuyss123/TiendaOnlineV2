@@ -18,7 +18,9 @@ import {
   deleteImageForProduct,
   deleteProduct,
   deleteTag,
+  getAdminProduct,
   getAdminStats,
+  listAdminProducts,
   listAdminOrders,
   listBlogPostsAdmin,
   listCoupons,
@@ -31,6 +33,7 @@ import {
   updateAdminOrderStatus,
   updateBlogPost,
   updateCoupon,
+  updateProductActive,
   updateProduct,
   updateTag,
   updateUserPermissions,
@@ -54,8 +57,15 @@ adminRouter.use(asyncHandler(requireAuth), requireVerifiedUser, requireRole(Role
 
 adminRouter.get("/stats", asyncHandler(getAdminStats));
 
+adminRouter.get("/productos", requirePermission(Permission.VER_PRODUCTOS), asyncHandler(listAdminProducts));
+adminRouter.get("/productos/:id", requirePermission(Permission.VER_PRODUCTOS), asyncHandler(getAdminProduct));
 adminRouter.post("/productos", requirePermission(Permission.CREAR_PRODUCTOS), asyncHandler(createProduct));
 adminRouter.put("/productos/:id", requirePermission(Permission.EDITAR_PRODUCTOS), asyncHandler(updateProduct));
+adminRouter.put(
+  "/productos/:id/activo",
+  requirePermission(Permission.EDITAR_PRODUCTOS),
+  asyncHandler(updateProductActive)
+);
 adminRouter.delete("/productos/:id", requireRole(Role.SUPER_ADMIN), asyncHandler(deleteProduct));
 adminRouter.post(
   "/productos/:id/imagenes",

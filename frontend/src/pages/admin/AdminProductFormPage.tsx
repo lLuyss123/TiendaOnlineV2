@@ -16,7 +16,6 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { getPrimaryProductImage } from "@/lib/utils";
 import { adminService } from "@/services/admin";
-import { shopService } from "@/services/shop";
 import type { Product, ProductImage } from "@/types/api";
 
 type DraftSpec = {
@@ -130,7 +129,7 @@ export const AdminProductFormPage = () => {
 
   const productQuery = useQuery({
     queryKey: ["admin-product", id],
-    queryFn: () => shopService.getProduct(id!),
+    queryFn: () => adminService.getProduct(id!),
     enabled: isEditing
   });
 

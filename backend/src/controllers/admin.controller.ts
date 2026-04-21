@@ -10,6 +10,7 @@ import { deleteProductImage, uploadProductImage } from "../services/cloudinary";
 import { sendStockAlertEmail } from "../services/email";
 import { enqueueReviewReminderJobsForOrder } from "../services/reviews";
 import { createShortId } from "../utils/id";
+import { getPagination } from "../utils/pagination";
 import { serializeBlogPost, serializeCoupon, serializeOrder, serializeProduct } from "../utils/serializers";
 
 const tagSchema = z.object({
@@ -61,6 +62,21 @@ const productSchema = z.object({
     .default([])
 });
 
+const adminProductQuerySchema = z.object({
+  q: z.string().optional(),
+  marca: z.string().optional(),
+  categoria: z.string().optional(),
+  talla: z.string().optional(),
+  color: z.string().optional(),
+  etiqueta: z.string().optional(),
+  minPrice: z.string().optional(),
+  maxPrice: z.string().optional(),
+  sort: z.enum(["latest", "price-asc", "price-desc", "discount", "stock"]).optional(),
+  estado: z.enum(["todos", "activos", "inactivos"]).optional(),
+  page: z.string().optional(),
+  pageSize: z.string().optional()
+});
+
 const roleSchema = z.object({
   rol: z.nativeEnum(Role)
 });
@@ -89,6 +105,96 @@ const productImageUrlSchema = z.object({
 const imageVisibilitySchema = z.object({
   visible: z.boolean()
 });
+
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+const buildAdminProductWhere = (
+  query: z.infer<typeof adminProductQuerySchema>
+): Prisma.ProductWhereInput => {
+  const where: Prisma.ProductWhereInput = {};
+
+  if (query.estado === "activos") {
+    where.activo = true;
+  }
+
+  if (query.estado === "inactivos") {
+    where.activo = false;
+  }
+
+  if (query.q) {
+    where.OR = [
+      { nombre: { contains: query.q, mode: "insensitive" } },
+      { descripcion: { contains: query.q, mode: "insensitive" } }
+    ];
+  }
+
+  if (query.marca) {
+    where.marca = query.marca.toUpperCase() as Prisma.ProductWhereInput["marca"];
+  }
+
+  if (query.categoria) {
+    where.categoria = query.categoria.toUpperCase() as Prisma.ProductWhereInput["categoria"];
+  }
+
+  if (query.talla) {
+    where.tallas = {
+      has: query.talla
+    };
+  }
+
+  if (query.color) {
+    where.colores = {
+      has: query.color
+    };
+  }
+
+  if (query.minPrice || query.maxPrice) {
+    where.precio = {
+      gte: query.minPrice ? Number(query.minPrice) : undefined,
+      lte: query.maxPrice ? Number(query.maxPrice) : undefined
+    };
+  }
+
+  if (query.etiqueta) {
+    const normalizedTag = slugify(query.etiqueta, { lower: false, strict: true }).replaceAll("-", "_");
+
+    if (normalizedTag === "AGOTADO") {
+      where.stock = 0;
+    } else if (normalizedTag === "POCAS_UNIDADES") {
+      where.stock = { lte: 5, gt: 0 };
+    } else if (normalizedTag === "OFERTA") {
+      where.precioOferta = { not: null };
+    } else {
+      where.tags = {
+        some: {
+          tag: {
+            nombre: query.etiqueta.toUpperCase()
+          }
+        }
+      };
+    }
+  }
+
+  return where;
+};
+
+const getAdminProductOrderBy = (
+  sort?: string
+): Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[] => {
+  switch (sort) {
+    case "price-asc":
+      return { precio: "asc" };
+    case "price-desc":
+      return { precio: "desc" };
+    case "stock":
+      return { stock: "asc" };
+    case "discount":
+      return [{ precioOferta: "desc" }, { precio: "desc" }];
+    default:
+      return { createdAt: "desc" };
+  }
+};
 
 type ProductImageState = {
   id: string;
@@ -217,6 +323,64 @@ export const getAdminStats = async (_request: Request, response: Response) => {
   });
 };
 
+export const listAdminProducts = async (request: Request, response: Response) => {
+  const query = adminProductQuerySchema.parse(request.query);
+  const { page, pageSize, skip, take } = getPagination(query);
+  const where = buildAdminProductWhere(query);
+
+  const [items, total, tags] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: {
+        images: { orderBy: { orden: "asc" } },
+        tags: { include: { tag: true } },
+        reviews: true
+      },
+      orderBy: getAdminProductOrderBy(query.sort),
+      skip,
+      take
+    }),
+    prisma.product.count({ where }),
+    prisma.tag.findMany({ orderBy: { nombre: "asc" } })
+  ]);
+
+  response.json({
+    items: items.map(serializeProduct),
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize)
+    },
+    filters: {
+      tags,
+      marcas: ["ALO", "ADIDAS", "NIKE"],
+      categorias: ["CALZADO", "ROPA", "ACCESORIOS", "EQUIPAMIENTO"]
+    }
+  });
+};
+
+export const getAdminProduct = async (request: Request, response: Response) => {
+  const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+
+  const product = await prisma.product.findFirst({
+    where: isUuid(id) ? { OR: [{ id }, { slug: id }] } : { slug: id },
+    include: {
+      images: { orderBy: { orden: "asc" } },
+      tags: { include: { tag: true } },
+      reviews: true
+    }
+  });
+
+  if (!product) {
+    throw new AppError("Producto no encontrado", 404);
+  }
+
+  response.json({
+    item: serializeProduct(product)
+  });
+};
+
 export const createProduct = async (request: Request, response: Response) => {
   const payload = productSchema.parse(request.body);
   const slug = slugify(payload.nombre, { lower: true, strict: true });
@@ -328,6 +492,28 @@ export const deleteProduct = async (request: Request, response: Response) => {
 
   response.json({
     message: "Producto desactivado",
+    item: serializeProduct(product)
+  });
+};
+
+export const updateProductActive = async (request: Request, response: Response) => {
+  const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+  const { activo } = deactivationSchema.parse(request.body);
+
+  const product = await prisma.product.update({
+    where: { id },
+    data: {
+      activo
+    },
+    include: {
+      images: { orderBy: { orden: "asc" } },
+      tags: { include: { tag: true } },
+      reviews: true
+    }
+  });
+
+  response.json({
+    message: activo ? "Producto activado" : "Producto desactivado",
     item: serializeProduct(product)
   });
 };

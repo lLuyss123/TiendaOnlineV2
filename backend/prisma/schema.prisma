@@ -155,6 +155,7 @@ model ProductImage {
   url       String
   publicId  String?
   alt       String?
+  visible   Boolean  @default(true)
   esPortada Boolean  @default(false)
   orden     Int      @default(0)
   createdAt DateTime @default(now())

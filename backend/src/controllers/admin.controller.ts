@@ -81,6 +81,52 @@ const reorderImagesSchema = z.object({
   imageIds: z.array(z.string().uuid()).min(1)
 });
 
+const productImageUrlSchema = z.object({
+  url: z.string().url(),
+  alt: z.string().trim().min(1).optional()
+});
+
+const imageVisibilitySchema = z.object({
+  visible: z.boolean()
+});
+
+type ProductImageState = {
+  id: string;
+  visible: boolean;
+};
+
+const buildProductImageState = (images: ProductImageState[], coverImageId: string | null) => {
+  const coverImage = coverImageId ? images.find((image) => image.id === coverImageId) : null;
+  const orderedImages = coverImage
+    ? [coverImage, ...images.filter((image) => image.id !== coverImageId)]
+    : [...images];
+
+  return orderedImages.map((image, index) => ({
+    id: image.id,
+    visible: image.visible,
+    esPortada: coverImageId ? image.id === coverImageId : false,
+    orden: index
+  }));
+};
+
+const persistProductImageState = async (
+  transaction: Prisma.TransactionClient,
+  images: ReturnType<typeof buildProductImageState>
+) => {
+  await Promise.all(
+    images.map((image) =>
+      transaction.productImage.update({
+        where: { id: image.id },
+        data: {
+          visible: image.visible,
+          esPortada: image.esPortada,
+          orden: image.orden
+        }
+      })
+    )
+  );
+};
+
 const maybeNotifyRestock = async (productId: string, previousStock: number, newStock: number) => {
   if (previousStock > 0 || newStock <= 0) {
     return;
@@ -198,6 +244,7 @@ export const createProduct = async (request: Request, response: Response) => {
         create: payload.images.map((image, index) => ({
           url: image.url,
           alt: image.alt,
+          visible: true,
           esPortada: image.esPortada || index === 0,
           orden: index
         }))
@@ -307,6 +354,7 @@ export const uploadImagesForProduct = async (request: Request, response: Respons
           url: result.url,
           publicId: result.publicId,
           alt: file.originalname,
+          visible: true,
           esPortada: existingImages.length === 0 && index === 0,
           orden: existingImages.length + index
         }
@@ -340,34 +388,155 @@ export const deleteImageForProduct = async (request: Request, response: Response
     orderBy: { orden: "asc" }
   });
 
-  const firstRemaining = remaining[0];
+  const currentVisibleCover = remaining.find((item) => item.esPortada && item.visible)?.id ?? null;
+  const nextCoverImageId = currentVisibleCover ?? remaining.find((item) => item.visible)?.id ?? null;
 
-  if (firstRemaining && !remaining.some((item) => item.esPortada)) {
-    await prisma.productImage.update({
-      where: { id: firstRemaining.id },
-      data: { esPortada: true }
+  if (remaining.length > 0) {
+    await prisma.$transaction(async (transaction) => {
+      await persistProductImageState(
+        transaction,
+        buildProductImageState(
+          remaining.map((item) => ({
+            id: item.id,
+            visible: item.visible
+          })),
+          nextCoverImageId
+        )
+      );
     });
   }
 
   response.status(204).send();
 };
 
+export const addImageUrlForProduct = async (request: Request, response: Response) => {
+  const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+  const payload = productImageUrlSchema.parse(request.body);
+
+  const existingImages = await prisma.productImage.findMany({
+    where: { productId: id },
+    orderBy: { orden: "asc" }
+  });
+
+  const created = await prisma.productImage.create({
+    data: {
+      productId: id,
+      url: payload.url,
+      alt: payload.alt,
+      visible: true,
+      esPortada: false,
+      orden: existingImages.length
+    }
+  });
+
+  const currentCoverId = existingImages.find((image) => image.esPortada && image.visible)?.id ?? created.id;
+  const nextState = buildProductImageState(
+    [
+      ...existingImages.map((image) => ({
+        id: image.id,
+        visible: image.visible
+      })),
+      {
+        id: created.id,
+        visible: true
+      }
+    ],
+    currentCoverId
+  );
+
+  await prisma.$transaction(async (transaction) => {
+    await persistProductImageState(transaction, nextState);
+  });
+
+  const refreshed = await prisma.productImage.findMany({
+    where: { productId: id },
+    orderBy: { orden: "asc" }
+  });
+
+  response.status(201).json({
+    items: refreshed
+  });
+};
+
 export const setCoverImageForProduct = async (request: Request, response: Response) => {
   const { id, imgId } = z.object({ id: z.string().uuid(), imgId: z.string().uuid() }).parse(request.params);
 
-  await prisma.$transaction([
-    prisma.productImage.updateMany({
-      where: { productId: id },
-      data: { esPortada: false }
-    }),
-    prisma.productImage.update({
-      where: { id: imgId },
-      data: { esPortada: true }
-    })
-  ]);
+  const images = await prisma.productImage.findMany({
+    where: { productId: id },
+    orderBy: { orden: "asc" }
+  });
+
+  if (!images.some((image) => image.id === imgId)) {
+    throw new AppError("Imagen no encontrada", 404);
+  }
+
+  const nextState = buildProductImageState(
+    images.map((image) => ({
+      id: image.id,
+      visible: image.id === imgId ? true : image.visible
+    })),
+    imgId
+  );
+
+  await prisma.$transaction(async (transaction) => {
+    await persistProductImageState(transaction, nextState);
+  });
 
   response.json({
     message: "Portada actualizada"
+  });
+};
+
+export const updateImageVisibilityForProduct = async (request: Request, response: Response) => {
+  const { id, imgId } = z.object({ id: z.string().uuid(), imgId: z.string().uuid() }).parse(request.params);
+  const payload = imageVisibilitySchema.parse(request.body);
+
+  const images = await prisma.productImage.findMany({
+    where: { productId: id },
+    orderBy: { orden: "asc" }
+  });
+
+  const targetImage = images.find((image) => image.id === imgId);
+
+  if (!targetImage) {
+    throw new AppError("Imagen no encontrada", 404);
+  }
+
+  const nextImages = images.map((image) => ({
+    id: image.id,
+    visible: image.id === imgId ? payload.visible : image.visible,
+    esPortada: image.esPortada
+  }));
+
+  let nextCoverImageId = nextImages.find((image) => image.esPortada && image.visible)?.id ?? null;
+
+  if (!payload.visible && targetImage.esPortada) {
+    nextCoverImageId = nextImages.find((image) => image.id !== imgId && image.visible)?.id ?? null;
+  }
+
+  if (payload.visible && !nextCoverImageId) {
+    nextCoverImageId = imgId;
+  }
+
+  const nextState = buildProductImageState(
+    nextImages.map((image) => ({
+      id: image.id,
+      visible: image.visible
+    })),
+    nextCoverImageId
+  );
+
+  await prisma.$transaction(async (transaction) => {
+    await persistProductImageState(transaction, nextState);
+  });
+
+  const refreshed = await prisma.productImage.findMany({
+    where: { productId: id },
+    orderBy: { orden: "asc" }
+  });
+
+  response.json({
+    items: refreshed
   });
 };
 

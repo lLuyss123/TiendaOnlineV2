@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { StatusNotice } from "@/components/ui/StatusNotice";
 import { adminService } from "@/services/admin";
 
 const emptyCoupon = {
@@ -13,7 +14,7 @@ const emptyCoupon = {
   vencimiento: "",
   activo: true,
   descripcion: ""
-};
+} as const;
 
 export const AdminCouponsPage = () => {
   const couponsQuery = useQuery({
@@ -21,10 +22,15 @@ export const AdminCouponsPage = () => {
     queryFn: () => adminService.listCoupons()
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyCoupon);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"info" | "success" | "error">("success");
+  const [form, setForm] = useState({ ...emptyCoupon });
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     const payload = {
       codigo: form.codigo,
       tipo: form.tipo,
@@ -35,15 +41,46 @@ export const AdminCouponsPage = () => {
       descripcion: form.descripcion
     };
 
-    if (editingId) {
-      await adminService.updateCoupon(editingId, payload);
-    } else {
-      await adminService.createCoupon(payload);
-    }
+    setIsSubmitting(true);
+    setMessage(editingId ? "Actualizando cupon..." : "Creando cupon...");
+    setMessageTone("info");
 
-    setEditingId(null);
-    setForm(emptyCoupon);
-    await couponsQuery.refetch();
+    try {
+      if (editingId) {
+        await adminService.updateCoupon(editingId, payload);
+      } else {
+        await adminService.createCoupon(payload);
+      }
+
+      setEditingId(null);
+      setForm({ ...emptyCoupon });
+      await couponsQuery.refetch();
+      setMessage(editingId ? "Cupon actualizado correctamente." : "Cupon creado correctamente.");
+      setMessageTone("success");
+    } catch {
+      setMessage("No pudimos guardar el cupon. Intentalo de nuevo.");
+      setMessageTone("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (couponId: string) => {
+    setDeletingId(couponId);
+    setMessage("Eliminando cupon...");
+    setMessageTone("info");
+
+    try {
+      await adminService.deleteCoupon(couponId);
+      await couponsQuery.refetch();
+      setMessage("Cupon eliminado correctamente.");
+      setMessageTone("success");
+    } catch {
+      setMessage("No pudimos eliminar el cupon.");
+      setMessageTone("error");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -51,7 +88,7 @@ export const AdminCouponsPage = () => {
       <form onSubmit={onSubmit} className="surface space-y-4 p-8">
         <p className="text-xs font-bold uppercase tracking-[0.32em] text-ember">Cupones</p>
         <Input
-          label="Código"
+          label="Codigo"
           value={form.codigo}
           onChange={(event) => setForm((current) => ({ ...current, codigo: event.target.value }))}
         />
@@ -90,7 +127,7 @@ export const AdminCouponsPage = () => {
           />
         </div>
         <Input
-          label="Descripción"
+          label="Descripcion"
           value={form.descripcion}
           onChange={(event) =>
             setForm((current) => ({ ...current, descripcion: event.target.value }))
@@ -102,46 +139,74 @@ export const AdminCouponsPage = () => {
             checked={form.activo}
             onChange={(event) => setForm((current) => ({ ...current, activo: event.target.checked }))}
           />
-          Cupón activo
+          Cupon activo
         </label>
-        <Button type="submit">{editingId ? "Actualizar cupón" : "Crear cupón"}</Button>
+
+        {message ? <StatusNotice tone={messageTone}>{message}</StatusNotice> : null}
+
+        <Button type="submit" disabled={isSubmitting || Boolean(deletingId)}>
+          {isSubmitting ? "Guardando..." : editingId ? "Actualizar cupon" : "Crear cupon"}
+        </Button>
       </form>
+
       <section className="space-y-4">
-        {couponsQuery.data?.items.map((coupon) => (
-          <div key={coupon.id} className="surface flex items-center justify-between gap-4 p-4">
-            <div>
-              <p className="font-semibold text-slate-950 dark:text-white">{coupon.codigo}</p>
-              <p className="text-sm text-slate-500 dark:text-slate-300">
-                {coupon.tipo} · {coupon.valor}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setEditingId(coupon.id);
-                  setForm({
-                    codigo: coupon.codigo,
-                    tipo: coupon.tipo,
-                    valor: String(coupon.valor),
-                    maxUsos: coupon.maxUsos ? String(coupon.maxUsos) : "",
-                    vencimiento: coupon.vencimiento ?? "",
-                    activo: coupon.activo,
-                    descripcion: coupon.descripcion ?? ""
-                  });
-                }}
-              >
-                Editar
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => void adminService.deleteCoupon(coupon.id).then(() => couponsQuery.refetch())}
-              >
-                Eliminar
-              </Button>
-            </div>
-          </div>
-        ))}
+        {couponsQuery.isLoading ? (
+          <StatusNotice tone="info" loading>
+            Cargando cupones...
+          </StatusNotice>
+        ) : couponsQuery.isError ? (
+          <StatusNotice tone="error">No pudimos cargar los cupones.</StatusNotice>
+        ) : couponsQuery.data?.items.length ? (
+          <>
+            {couponsQuery.isRefetching ? (
+              <StatusNotice tone="info" loading>
+                Actualizando lista de cupones...
+              </StatusNotice>
+            ) : null}
+
+            {couponsQuery.data.items.map((coupon) => (
+              <div key={coupon.id} className="surface flex items-center justify-between gap-4 p-4">
+                <div>
+                  <p className="font-semibold text-slate-950 dark:text-white">{coupon.codigo}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-300">
+                    {coupon.tipo} · {coupon.valor}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    disabled={isSubmitting || Boolean(deletingId)}
+                    onClick={() => {
+                      setEditingId(coupon.id);
+                      setForm({
+                        codigo: coupon.codigo,
+                        tipo: coupon.tipo,
+                        valor: String(coupon.valor),
+                        maxUsos: coupon.maxUsos ? String(coupon.maxUsos) : "",
+                        vencimiento: coupon.vencimiento ?? "",
+                        activo: coupon.activo,
+                        descripcion: coupon.descripcion ?? ""
+                      });
+                      setMessage(`Listo para editar el cupon ${coupon.codigo}.`);
+                      setMessageTone("info");
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="danger"
+                    disabled={isSubmitting || Boolean(deletingId)}
+                    onClick={() => void handleDeleteCoupon(coupon.id)}
+                  >
+                    {deletingId === coupon.id ? "Eliminando..." : "Eliminar"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <StatusNotice tone="info">Todavia no hay cupones creados.</StatusNotice>
+        )}
       </section>
     </div>
   );

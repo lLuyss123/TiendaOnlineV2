@@ -37,6 +37,7 @@ export type ProductImage = {
   url: string;
   alt?: string | null;
   publicId?: string | null;
+  visible: boolean;
   esPortada: boolean;
   orden: number;
 };

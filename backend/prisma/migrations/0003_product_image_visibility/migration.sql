@@ -1,0 +1,2 @@
+ALTER TABLE "ProductImage"
+ADD COLUMN "visible" BOOLEAN NOT NULL DEFAULT true;

@@ -80,9 +80,19 @@ export const adminService = {
       body: form
     });
   },
+  addProductImageByUrl: (productId: string, payload: { url: string; alt?: string }) =>
+    apiFetch<{ items: Product["images"] }>(`/api/admin/productos/${productId}/imagenes/url`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   deleteProductImage: (productId: string, imageId: string) =>
     apiFetch<void>(`/api/admin/productos/${productId}/imagenes/${imageId}`, {
       method: "DELETE"
+    }),
+  updateProductImageVisibility: (productId: string, imageId: string, visible: boolean) =>
+    apiFetch<{ items: Product["images"] }>(`/api/admin/productos/${productId}/imagenes/${imageId}/visibilidad`, {
+      method: "PUT",
+      body: JSON.stringify({ visible })
     }),
   setProductCover: (productId: string, imageId: string) =>
     apiFetch<{ message: string }>(`/api/admin/productos/${productId}/imagenes/${imageId}/portada`, {

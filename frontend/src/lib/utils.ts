@@ -1,5 +1,7 @@
 import clsx, { type ClassValue } from "clsx";
 
+import type { ProductImage } from "@/types/api";
+
 export const cn = (...inputs: ClassValue[]) => clsx(inputs);
 
 export const currency = (value: number) =>
@@ -64,4 +66,29 @@ export const fitLabel = (value?: string | null) => {
   }
 
   return "Exacto";
+};
+
+export const getVisibleProductImages = (
+  images: ProductImage[],
+  options?: {
+    includeHiddenFallback?: boolean;
+  }
+) => {
+  const visibleImages = images.filter((image) => image.visible !== false);
+
+  if (visibleImages.length > 0) {
+    return visibleImages;
+  }
+
+  return options?.includeHiddenFallback ? images : [];
+};
+
+export const getPrimaryProductImage = (
+  images: ProductImage[],
+  options?: {
+    includeHiddenFallback?: boolean;
+  }
+) => {
+  const candidateImages = getVisibleProductImages(images, options);
+  return candidateImages.find((image) => image.esPortada) ?? candidateImages[0];
 };

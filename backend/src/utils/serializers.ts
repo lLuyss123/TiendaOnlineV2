@@ -98,6 +98,7 @@ export const serializeProduct = (product: any) => {
         url: image.url,
         publicId: image.publicId,
         alt: image.alt,
+        visible: image.visible,
         esPortada: image.esPortada,
         orden: image.orden
       })) ?? [],

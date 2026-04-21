@@ -9,7 +9,7 @@ export const ProtectedRoute = ({ children }: PropsWithChildren) => {
   const location = useLocation();
 
   if (isLoading) {
-    return <LoadingState label="Verificando sesión..." />;
+    return <LoadingState label="Verificando sesion..." />;
   }
 
   if (!isAuthenticated || !user) {
@@ -36,6 +36,24 @@ export const AdminRoute = ({ children }: PropsWithChildren) => {
 
   if (!["SUPER_ADMIN", "SUB_ADMIN"].includes(user.rol)) {
     return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+export const SuperAdminRoute = ({ children }: PropsWithChildren) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return <LoadingState label="Cargando panel..." />;
+  }
+
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.rol !== "SUPER_ADMIN") {
+    return <Navigate to="/admin" replace />;
   }
 
   return children;

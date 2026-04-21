@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AccountLayout } from "./components/layout/AccountLayout";
 import { AdminLayout } from "./components/layout/AdminLayout";
 import { RootLayout } from "./components/layout/RootLayout";
-import { AdminRoute, ProtectedRoute } from "./components/layout/RouteGuards";
+import { AdminRoute, ProtectedRoute, SuperAdminRoute } from "./components/layout/RouteGuards";
 import { AdminBlogPage } from "./pages/admin/AdminBlogPage";
 import { AdminCouponsPage } from "./pages/admin/AdminCouponsPage";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -117,8 +117,22 @@ const App = () => (
         <Route path="productos/nuevo" element={<AdminProductFormPage />} />
         <Route path="productos/editar/:id" element={<AdminProductFormPage />} />
         <Route path="ordenes" element={<AdminOrdersPage />} />
-        <Route path="usuarios" element={<AdminUsersPage />} />
-        <Route path="sub-admins" element={<AdminSubAdminsPage />} />
+        <Route
+          path="usuarios"
+          element={
+            <SuperAdminRoute>
+              <AdminUsersPage />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="sub-admins"
+          element={
+            <SuperAdminRoute>
+              <AdminSubAdminsPage />
+            </SuperAdminRoute>
+          }
+        />
         <Route path="etiquetas" element={<AdminTagsPage />} />
         <Route path="cupones" element={<AdminCouponsPage />} />
         <Route path="resenas" element={<AdminReviewsPage />} />

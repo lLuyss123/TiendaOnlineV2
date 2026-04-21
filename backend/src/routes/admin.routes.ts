@@ -7,6 +7,7 @@ import { requirePermission } from "../middlewares/permisos";
 import { requireRole } from "../middlewares/roles";
 import { upload } from "../middlewares/upload";
 import {
+  addImageUrlForProduct,
   createBlogPost,
   createCoupon,
   createProduct,
@@ -26,6 +27,7 @@ import {
   listUsers,
   reorderProductImages,
   setCoverImageForProduct,
+  updateImageVisibilityForProduct,
   updateAdminOrderStatus,
   updateBlogPost,
   updateCoupon,
@@ -61,10 +63,20 @@ adminRouter.post(
   upload.array("images", 10),
   asyncHandler(uploadImagesForProduct)
 );
+adminRouter.post(
+  "/productos/:id/imagenes/url",
+  requirePermission(Permission.EDITAR_PRODUCTOS),
+  asyncHandler(addImageUrlForProduct)
+);
 adminRouter.delete(
   "/productos/:id/imagenes/:imgId",
   requirePermission(Permission.EDITAR_PRODUCTOS),
   asyncHandler(deleteImageForProduct)
+);
+adminRouter.put(
+  "/productos/:id/imagenes/:imgId/visibilidad",
+  requirePermission(Permission.EDITAR_PRODUCTOS),
+  asyncHandler(updateImageVisibilityForProduct)
 );
 adminRouter.put(
   "/productos/:id/imagenes/:imgId/portada",

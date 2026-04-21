@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { currency } from "@/lib/utils";
+import { currency, getPrimaryProductImage } from "@/lib/utils";
 import { accountService } from "@/services/account";
 import type { Product } from "@/types/api";
 
@@ -16,19 +16,25 @@ export const ProductCard = ({
   onWishlistAdded?: () => void;
 }) => {
   const { isAuthenticated } = useAuth();
-  const cover = product.images.find((image) => image.esPortada) ?? product.images[0];
+  const cover = getPrimaryProductImage(product.images);
 
   return (
     <article className="group surface overflow-hidden">
       <Link to={`/productos/${product.slug}`} className="block">
         <div className="relative">
-          <img
-            src={cover?.url}
-            alt={cover?.alt ?? product.nombre}
-            className={`aspect-[4/5] w-full object-cover transition duration-500 group-hover:scale-[1.02] ${
-              product.isSoldOut ? "grayscale" : ""
-            }`}
-          />
+          {cover ? (
+            <img
+              src={cover.url}
+              alt={cover.alt ?? product.nombre}
+              className={`aspect-[4/5] w-full object-cover transition duration-500 group-hover:scale-[1.02] ${
+                product.isSoldOut ? "grayscale" : ""
+              }`}
+            />
+          ) : (
+            <div className="flex aspect-[4/5] w-full items-center justify-center bg-slate-100 text-sm font-medium text-slate-400 dark:bg-white/5 dark:text-slate-500">
+              Sin imagen visible
+            </div>
+          )}
           {product.isSoldOut ? (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40">
               <span className="rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.3em] text-slate-950">

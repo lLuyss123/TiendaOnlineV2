@@ -4,7 +4,7 @@ import { CartSummary } from "@/components/cart/CartSummary";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useCart } from "@/hooks/useCart";
-import { currency } from "@/lib/utils";
+import { currency, getPrimaryProductImage } from "@/lib/utils";
 import { accountService } from "@/services/account";
 
 export const CartPage = () => {
@@ -40,11 +40,17 @@ export const CartPage = () => {
         {items.length ? (
           items.map((item) => (
             <div key={item.id} className="surface flex gap-4 p-4">
-              <img
-                src={item.product.images[0]?.url}
-                alt={item.product.nombre}
-                className="h-36 w-28 rounded-[1.5rem] object-cover"
-              />
+              {getPrimaryProductImage(item.product.images) ? (
+                <img
+                  src={getPrimaryProductImage(item.product.images)!.url}
+                  alt={item.product.nombre}
+                  className="h-36 w-28 rounded-[1.5rem] object-cover"
+                />
+              ) : (
+                <div className="flex h-36 w-28 items-center justify-center rounded-[1.5rem] bg-slate-100 text-xs font-semibold text-slate-400 dark:bg-white/5 dark:text-slate-500">
+                  Sin imagen
+                </div>
+              )}
               <div className="flex flex-1 flex-col gap-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>

@@ -1,14 +1,28 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { getVisibleProductImages } from "@/lib/utils";
 import type { ProductImage } from "@/types/api";
 
 export const ProductGallery = ({ images }: { images: ProductImage[] }) => {
-  const [selectedImage, setSelectedImage] = useState(images[0]?.url ?? "");
+  const visibleImages = useMemo(() => getVisibleProductImages(images), [images]);
+  const [selectedImage, setSelectedImage] = useState(visibleImages[0]?.url ?? "");
+
+  useEffect(() => {
+    setSelectedImage(visibleImages[0]?.url ?? "");
+  }, [visibleImages]);
+
+  if (!visibleImages.length) {
+    return (
+      <div className="surface flex min-h-[420px] items-center justify-center p-6 text-sm font-medium text-slate-400 dark:text-slate-500">
+        Este producto no tiene imagenes visibles en este momento.
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[90px_1fr]">
       <div className="flex gap-3 overflow-x-auto lg:flex-col">
-        {images.map((image) => (
+        {visibleImages.map((image) => (
           <button
             key={image.id}
             type="button"

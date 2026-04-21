@@ -1,4 +1,4 @@
-import { Heart } from "lucide-react";
+import { Heart, LoaderCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/Badge";
@@ -16,9 +16,11 @@ export const ProductCard = ({
   onWishlistAdded?: () => void;
 }) => {
   const { isAuthenticated } = useAuth();
-  const { isWishlisted, isUpdating, toggleWishlist } = useWishlist();
+  const { isWishlisted, isProductUpdating, getPendingAction, toggleWishlist } = useWishlist();
   const cover = getPrimaryProductImage(product.images);
   const favorite = isWishlisted(product.id);
+  const isPending = isProductUpdating(product.id);
+  const pendingAction = getPendingAction(product.id);
 
   return (
     <article className="group surface overflow-hidden">
@@ -73,10 +75,18 @@ export const ProductCard = ({
                 favorite
                   ? "border-ember bg-ember/10 text-ember"
                   : "border-slate-200 text-slate-500 hover:border-ember hover:text-ember dark:border-white/10 dark:text-slate-300"
-              }`}
-              aria-label={favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+              } ${isPending ? "scale-95 opacity-80" : ""}`}
+              aria-label={
+                isPending
+                  ? pendingAction === "remove"
+                    ? "Quitando de favoritos"
+                    : "Agregando a favoritos"
+                  : favorite
+                    ? "Quitar de favoritos"
+                    : "Agregar a favoritos"
+              }
               aria-pressed={favorite}
-              disabled={isUpdating}
+              disabled={isPending}
               onClick={() =>
                 void toggleWishlist(product).then((added) => {
                   if (added) {
@@ -85,7 +95,20 @@ export const ProductCard = ({
                 })
               }
             >
-              <Heart size={16} className={favorite ? "fill-current" : ""} />
+              <span className="relative flex h-4 w-4 items-center justify-center">
+                <Heart
+                  size={16}
+                  className={`absolute transition-all duration-200 ${
+                    favorite ? "scale-100 fill-current opacity-100" : "scale-90 opacity-90"
+                  } ${isPending ? "scale-75 opacity-0" : ""}`}
+                />
+                <LoaderCircle
+                  size={16}
+                  className={`absolute animate-spin transition-all duration-200 ${
+                    isPending ? "scale-100 opacity-100" : "scale-75 opacity-0"
+                  }`}
+                />
+              </span>
             </button>
           ) : null}
         </div>

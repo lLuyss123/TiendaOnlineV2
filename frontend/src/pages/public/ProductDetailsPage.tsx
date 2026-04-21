@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Heart, ShoppingBag } from "lucide-react";
+import { Heart, LoaderCircle, ShoppingBag } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import { ProductGallery } from "@/components/product/ProductGallery";
@@ -22,7 +22,7 @@ export const ProductDetailsPage = () => {
   const { id = "" } = useParams();
   const { user } = useAuth();
   const { refreshCart } = useCart();
-  const { isWishlisted, toggleWishlist, isUpdating: isUpdatingWishlist } = useWishlist();
+  const { isWishlisted, isProductUpdating, getPendingAction, toggleWishlist } = useWishlist();
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -70,6 +70,8 @@ export const ProductDetailsPage = () => {
 
   const product = productQuery.data?.item;
   const favorite = product ? isWishlisted(product.id) : false;
+  const isPendingWishlist = product ? isProductUpdating(product.id) : false;
+  const pendingWishlistAction = product ? getPendingAction(product.id) : null;
 
   if (!product) {
     return (
@@ -170,7 +172,9 @@ export const ProductDetailsPage = () => {
             <Button
               fullWidth
               variant="secondary"
-              className={favorite ? "border-ember bg-ember/10 text-ember hover:bg-ember/20" : undefined}
+              className={`transition-all duration-200 ${
+                favorite ? "border-ember bg-ember/10 text-ember hover:bg-ember/20" : ""
+              } ${isPendingWishlist ? "scale-[0.99] opacity-80" : ""}`}
               onClick={() =>
                 void toggleWishlist(product).then((added) => {
                   setFeedback(
@@ -178,10 +182,29 @@ export const ProductDetailsPage = () => {
                   );
                 })
               }
-              disabled={!user || isUpdatingWishlist}
+              disabled={!user || isPendingWishlist}
             >
-              <Heart size={16} className={favorite ? "fill-current" : ""} />
-              {favorite ? "Quitar de wishlist" : "Guardar en wishlist"}
+              <span className="relative flex h-4 w-4 items-center justify-center">
+                <Heart
+                  size={16}
+                  className={`absolute transition-all duration-200 ${
+                    favorite ? "scale-100 fill-current opacity-100" : "scale-90 opacity-90"
+                  } ${isPendingWishlist ? "scale-75 opacity-0" : ""}`}
+                />
+                <LoaderCircle
+                  size={16}
+                  className={`absolute animate-spin transition-all duration-200 ${
+                    isPendingWishlist ? "scale-100 opacity-100" : "scale-75 opacity-0"
+                  }`}
+                />
+              </span>
+              {isPendingWishlist
+                ? pendingWishlistAction === "remove"
+                  ? "Quitando..."
+                  : "Guardando..."
+                : favorite
+                  ? "Quitar de wishlist"
+                  : "Guardar en wishlist"}
             </Button>
           </div>
 

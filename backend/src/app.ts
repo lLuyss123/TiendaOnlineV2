@@ -13,12 +13,74 @@ import { paymentRouter } from "./routes/payment.routes";
 import { reviewRouter } from "./routes/review.routes";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
 
+const configuredOrigins = env.FRONTEND_URL.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isLocalDevelopmentOrigin = (origin: string) => {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
+
+const isAllowedVercelPreviewOrigin = (origin: string) => {
+  try {
+    const incomingUrl = new URL(origin);
+
+    if (!incomingUrl.hostname.endsWith(".vercel.app")) {
+      return false;
+    }
+
+    return configuredOrigins.some((configuredOrigin) => {
+      try {
+        const configuredUrl = new URL(configuredOrigin);
+
+        if (!configuredUrl.hostname.endsWith(".vercel.app")) {
+          return false;
+        }
+
+        const projectSlug = configuredUrl.hostname.replace(/\.vercel\.app$/, "");
+        return incomingUrl.hostname === configuredUrl.hostname || incomingUrl.hostname.startsWith(`${projectSlug}-`);
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+};
+
+const isAllowedOrigin = (origin?: string) => {
+  if (!origin) {
+    return true;
+  }
+
+  if (configuredOrigins.includes(origin)) {
+    return true;
+  }
+
+  if (isAllowedVercelPreviewOrigin(origin)) {
+    return true;
+  }
+
+  if (!env.NODE_ENV || env.NODE_ENV !== "production") {
+    return isLocalDevelopmentOrigin(origin);
+  }
+
+  return false;
+};
+
 export const createApp = () => {
   const app = express();
 
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        callback(null, isAllowedOrigin(origin));
+      },
       credentials: true
     })
   );

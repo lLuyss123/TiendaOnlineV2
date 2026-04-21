@@ -1,0 +1,387 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  SUB_ADMIN
+  CLIENTE
+}
+
+enum Permission {
+  VER_PRODUCTOS
+  CREAR_PRODUCTOS
+  EDITAR_PRODUCTOS
+  VER_ORDENES
+  GESTIONAR_ORDENES
+  VER_USUARIOS
+  GESTIONAR_BLOG
+  GESTIONAR_CUPONES
+  GESTIONAR_RESENAS
+  ELIMINAR_RESENAS
+}
+
+enum ProductBrand {
+  ALO
+  ADIDAS
+  NIKE
+}
+
+enum ProductCategory {
+  CALZADO
+  ROPA
+  ACCESORIOS
+  EQUIPAMIENTO
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PROCESSING
+  PAID
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REJECTED
+  FAILED
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model User {
+  id                      String                   @id @default(uuid())
+  nombre                  String
+  email                   String                   @unique
+  password                String
+  telefono                String?
+  avatar                  String?
+  rol                     Role                     @default(CLIENTE)
+  activo                  Boolean                  @default(false)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  subAdminPermissions     SubAdminPermission[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  wishlistItems           WishlistItem[]
+  cartItems               CartItem[]
+  orders                  Order[]
+  reviews                 Review[]
+  reviewVotes             ReviewVote[]
+  reviewReplies           ReviewReply[]
+  reviewReports           ReviewReport[]
+  reviewReminderJobs      ReviewReminderJob[]
+  blogPosts               BlogPost[]               @relation("BlogAuthor")
+  stockAlerts             StockAlert[]
+  addresses               Address[]
+}
+
+model SubAdminPermission {
+  id         String     @id @default(uuid())
+  userId     String
+  permission Permission
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id             String           @id @default(uuid())
+  slug           String           @unique
+  nombre         String
+  descripcion    String
+  precio         Decimal          @db.Decimal(10, 2)
+  precioOferta   Decimal?         @db.Decimal(10, 2)
+  stock          Int
+  marca          ProductBrand
+  categoria      ProductCategory
+  tallas         String[]
+  colores        String[]
+  especificaciones Json
+  activo         Boolean          @default(true)
+  promedioCalificacion Float      @default(0)
+  totalResenas    Int             @default(0)
+  distribucion1   Int             @default(0)
+  distribucion2   Int             @default(0)
+  distribucion3   Int             @default(0)
+  distribucion4   Int             @default(0)
+  distribucion5   Int             @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  images         ProductImage[]
+  tags           ProductTag[]
+  wishlistItems  WishlistItem[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+  reviewReminderJobs ReviewReminderJob[]
+  stockAlerts    StockAlert[]
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  publicId  String?
+  alt       String?
+  esPortada Boolean  @default(false)
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, orden])
+}
+
+model Tag {
+  id        String       @id @default(uuid())
+  nombre    String       @unique
+  slug      String       @unique
+  color     String
+  icono     String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  products  ProductTag[]
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  cantidad  Int      @default(1)
+  talla     String?
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId, talla, color])
+}
+
+model Address {
+  id          String   @id @default(uuid())
+  userId      String
+  alias       String
+  destinatario String
+  telefono    String
+  direccion1  String
+  direccion2  String?
+  ciudad      String
+  region      String
+  codigoPostal String
+  pais        String   @default("CO")
+  esPrincipal Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  reference         String      @unique
+  userId            String
+  total             Decimal     @db.Decimal(10, 2)
+  subtotal          Decimal     @db.Decimal(10, 2)
+  descuento         Decimal     @db.Decimal(10, 2)
+  envio             Decimal     @db.Decimal(10, 2)
+  estado            OrderStatus @default(PENDING_PAYMENT)
+  direccionEnvio    Json
+  metodoPago        String
+  boldTransactionId String?
+  boldStatus        String?
+  paymentReference  String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items             OrderItem[]
+  reviewReminderJobs ReviewReminderJob[]
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  cantidad  Int
+  talla     String?
+  color     String?
+  precio    Decimal  @db.Decimal(10, 2)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model Review {
+  id           String         @id @default(cuid())
+  productId    String
+  userId       String
+  calificacion Int
+  titulo       String
+  comentario   String
+  verificado   Boolean        @default(false)
+  talla        String?
+  ajuste       String?
+  comodidad    Int?
+  utilidad     Int            @default(0)
+  visible      Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  product      Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fotos        ReviewPhoto[]
+  votos        ReviewVote[]
+  respuesta    ReviewReply?
+  reportes     ReviewReport[]
+
+  @@unique([productId, userId])
+}
+
+model ReviewPhoto {
+  id        String   @id @default(cuid())
+  reviewId  String
+  url       String
+  publicId  String?
+  orden     Int
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+}
+
+model ReviewVote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  util      Boolean
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+}
+
+model ReviewReply {
+  id        String   @id @default(cuid())
+  reviewId  String   @unique
+  adminId   String
+  contenido String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model ReviewReport {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  motivo    String
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+}
+
+model ReviewReminderJob {
+  id        String   @id @default(cuid())
+  orderId    String
+  userId     String
+  productId  String
+  sendAfter  DateTime
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, userId, productId])
+}
+
+model Coupon {
+  id          String     @id @default(uuid())
+  codigo      String     @unique
+  tipo        CouponType
+  valor       Decimal    @db.Decimal(10, 2)
+  maxUsos     Int?
+  usosActuales Int       @default(0)
+  vencimiento DateTime?
+  activo      Boolean    @default(true)
+  descripcion String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model BlogPost {
+  id               String   @id @default(uuid())
+  slug             String   @unique
+  titulo           String
+  excerpt          String
+  contenido        String
+  imagen           String
+  relatedProductIds String[]
+  autorId          String
+  publicado        Boolean  @default(false)
+  publishedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  author           User     @relation("BlogAuthor", fields: [autorId], references: [id], onDelete: Cascade)
+}
+
+model StockAlert {
+  id         String    @id @default(uuid())
+  userId     String
+  productId  String
+  notified   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  notifiedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}

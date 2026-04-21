@@ -1,6 +1,5 @@
 import { OrderStatus, Permission, Prisma, Role } from "@prisma/client";
 import type { Request, Response } from "express";
-import { nanoid } from "nanoid";
 import slugify from "slugify";
 import { z } from "zod";
 
@@ -10,6 +9,7 @@ import { AppError } from "../lib/errors";
 import { deleteProductImage, uploadProductImage } from "../services/cloudinary";
 import { sendStockAlertEmail } from "../services/email";
 import { enqueueReviewReminderJobsForOrder } from "../services/reviews";
+import { createShortId } from "../utils/id";
 import { serializeBlogPost, serializeCoupon, serializeOrder, serializeProduct } from "../utils/serializers";
 
 const tagSchema = z.object({
@@ -223,7 +223,7 @@ export const createProduct = async (request: Request, response: Response) => {
 
   const product = await prisma.product.create({
     data: {
-      slug: slug || `producto-${nanoid(6).toLowerCase()}`,
+      slug: slug || `producto-${createShortId(6).toLowerCase()}`,
       nombre: payload.nombre,
       descripcion: payload.descripcion,
       precio: payload.precio,
@@ -939,7 +939,7 @@ export const createBlogPost = async (request: Request, response: Response) => {
 
   const post = await prisma.blogPost.create({
     data: {
-      slug: slugify(payload.titulo, { lower: true, strict: true }) || `blog-${nanoid(6)}`,
+      slug: slugify(payload.titulo, { lower: true, strict: true }) || `blog-${createShortId(6)}`,
       titulo: payload.titulo,
       excerpt: payload.excerpt,
       contenido: payload.contenido,

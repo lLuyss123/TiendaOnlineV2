@@ -1,12 +1,12 @@
 import { CouponType, OrderStatus, Prisma } from "@prisma/client";
 import type { Request, Response } from "express";
-import { nanoid } from "nanoid";
 import { z } from "zod";
 
 import { SHIPPING_FLAT_RATE } from "../config/constants";
 import { prisma } from "../lib/prisma";
 import { AppError } from "../lib/errors";
 import { sendOrderConfirmationEmail } from "../services/email";
+import { createShortId } from "../utils/id";
 import { buildBoldCheckoutConfig } from "../utils/bold";
 import { serializeCartItem, serializeOrder, serializeProduct, toNumber } from "../utils/serializers";
 
@@ -384,7 +384,7 @@ export const createOrder = async (request: Request, response: Response) => {
   const order = await prisma.$transaction(async (transaction) => {
     const created = await transaction.order.create({
       data: {
-        reference: `ORD-${nanoid(10).toUpperCase()}`,
+        reference: `ORD-${createShortId(10).toUpperCase()}`,
         userId,
         subtotal,
         descuento: discount,
@@ -392,7 +392,7 @@ export const createOrder = async (request: Request, response: Response) => {
         total,
         metodoPago: payload.metodoPago,
         estado: OrderStatus.PENDING_PAYMENT,
-        paymentReference: `REF-${nanoid(12).toUpperCase()}`,
+        paymentReference: `REF-${createShortId(12).toUpperCase()}`,
         direccionEnvio: address,
         items: {
           create: cartItems.map((item) => ({

@@ -19,8 +19,10 @@ export class ApiError extends Error {
 export const apiFetch = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const headers = new Headers(init?.headers ?? {});
+  const method = (init?.method ?? "GET").toUpperCase();
+  const hasBody = init?.body !== undefined && init?.body !== null;
 
-  if (!isFormData && !headers.has("Content-Type")) {
+  if (!isFormData && hasBody && method !== "GET" && method !== "HEAD" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 

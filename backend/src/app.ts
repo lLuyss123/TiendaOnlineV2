@@ -79,7 +79,7 @@ export const createApp = () => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        callback(null, isAllowedOrigin(origin));
+        callback(null, isAllowedOrigin(origin) ? origin ?? true : false);
       },
       credentials: true
     })

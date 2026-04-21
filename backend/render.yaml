@@ -4,5 +4,5 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm install --include=dev && npm run build --workspace backend
+    buildCommand: npm install --include=dev && npm run prisma:migrate:deploy --workspace backend && npm run build --workspace backend
     startCommand: npm run start --workspace backend

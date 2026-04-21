@@ -111,8 +111,8 @@ VITE_CLOUDINARY_CLOUD_NAME="cloud-name"
 
 1. Crea un servicio web apuntando a `backend/`.
 2. Usa `render.yaml` o configura:
-   - Build command: `npm install && npx prisma generate && npx prisma migrate deploy && npm run build`
-   - Start command: `npm run start`
+   - Build command: `npm install --production=false && npm run prisma:migrate:deploy --workspace backend && npm run build --workspace backend`
+   - Start command: `npm run start --workspace backend`
 3. Configura las variables de entorno del backend.
 4. No configures `NODE_ENV` manualmente en el dashboard de Render.
    Render ya lo establece como `production` en runtime; si lo fuerzas en build puedes dejar fuera `devDependencies` necesarias para compilar TypeScript, como `@types/node`.

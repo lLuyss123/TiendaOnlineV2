@@ -279,6 +279,11 @@ export type Coupon = {
   descripcion?: string | null;
 };
 
+export type WishlistItem = {
+  id: string;
+  product: Product;
+};
+
 export type BoldCheckoutConfig = {
   apiKey: string;
   amount: number;

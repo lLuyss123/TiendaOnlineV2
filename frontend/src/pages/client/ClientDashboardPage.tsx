@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { StatCard } from "@/components/ui/StatCard";
 import { useAuth } from "@/hooks/useAuth";
+import { useWishlist } from "@/hooks/useWishlist";
 import { currency } from "@/lib/utils";
 import { accountService } from "@/services/account";
 
@@ -11,10 +12,7 @@ export const ClientDashboardPage = () => {
     queryKey: ["my-orders"],
     queryFn: () => accountService.getMyOrders()
   });
-  const wishlistQuery = useQuery({
-    queryKey: ["wishlist"],
-    queryFn: () => accountService.getWishlist()
-  });
+  const wishlistQuery = useWishlist();
 
   const totalSpent =
     ordersQuery.data?.items

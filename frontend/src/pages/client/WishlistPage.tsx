@@ -1,17 +1,15 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { getPrimaryProductImage } from "@/lib/utils";
 import { accountService } from "@/services/account";
 
 export const WishlistPage = () => {
   const { refreshCart } = useCart();
-  const wishlistQuery = useQuery({
-    queryKey: ["wishlist-page"],
-    queryFn: () => accountService.getWishlist()
-  });
+  const wishlistQuery = useWishlist();
 
   const addToCartMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -21,8 +19,7 @@ export const WishlistPage = () => {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (productId: string) => accountService.removeFromWishlist(productId),
-    onSuccess: () => wishlistQuery.refetch()
+    mutationFn: (productId: string) => wishlistQuery.removeFromWishlist(productId)
   });
 
   if (wishlistQuery.isLoading) {

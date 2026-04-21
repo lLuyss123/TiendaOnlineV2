@@ -1,4 +1,4 @@
-import type { Address, BoldCheckoutConfig, CartItem, Order, Product, User } from "@/types/api";
+import type { Address, BoldCheckoutConfig, CartItem, Order, User, WishlistItem } from "@/types/api";
 
 import { apiFetch } from "./api";
 
@@ -22,9 +22,9 @@ export const accountService = {
     apiFetch<void>("/api/carrito", {
       method: "DELETE"
     }),
-  getWishlist: () => apiFetch<{ items: Array<{ id: string; product: Product }> }>("/api/wishlist"),
+  getWishlist: () => apiFetch<{ items: WishlistItem[] }>("/api/wishlist"),
   addToWishlist: (productId: string) =>
-    apiFetch<{ item: { id: string; product: Product } }>("/api/wishlist", {
+    apiFetch<{ item: WishlistItem }>("/api/wishlist", {
       method: "POST",
       body: JSON.stringify({ productId })
     }),

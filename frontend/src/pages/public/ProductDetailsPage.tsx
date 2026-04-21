@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { currency } from "@/lib/utils";
 import { accountService } from "@/services/account";
 import { shopService } from "@/services/shop";
@@ -21,6 +22,7 @@ export const ProductDetailsPage = () => {
   const { id = "" } = useParams();
   const { user } = useAuth();
   const { refreshCart } = useCart();
+  const { isWishlisted, toggleWishlist, isUpdating: isUpdatingWishlist } = useWishlist();
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -51,13 +53,6 @@ export const ProductDetailsPage = () => {
     }
   });
 
-  const addToWishlistMutation = useMutation({
-    mutationFn: () => accountService.addToWishlist(productQuery.data!.item.id),
-    onSuccess: () => {
-      setFeedback("Producto agregado a tu wishlist.");
-    }
-  });
-
   const stockAlertMutation = useMutation({
     mutationFn: () => shopService.createStockAlert(productQuery.data!.item.id),
     onSuccess: () => {
@@ -74,6 +69,7 @@ export const ProductDetailsPage = () => {
   }
 
   const product = productQuery.data?.item;
+  const favorite = product ? isWishlisted(product.id) : false;
 
   if (!product) {
     return (
@@ -174,11 +170,18 @@ export const ProductDetailsPage = () => {
             <Button
               fullWidth
               variant="secondary"
-              onClick={() => addToWishlistMutation.mutate()}
-              disabled={!user}
+              className={favorite ? "border-ember bg-ember/10 text-ember hover:bg-ember/20" : undefined}
+              onClick={() =>
+                void toggleWishlist(product).then((added) => {
+                  setFeedback(
+                    added ? "Producto agregado a tu wishlist." : "Producto eliminado de tu wishlist."
+                  );
+                })
+              }
+              disabled={!user || isUpdatingWishlist}
             >
-              <Heart size={16} />
-              Guardar en wishlist
+              <Heart size={16} className={favorite ? "fill-current" : ""} />
+              {favorite ? "Quitar de wishlist" : "Guardar en wishlist"}
             </Button>
           </div>
 

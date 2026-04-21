@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
+import { useWishlist } from "@/hooks/useWishlist";
 import { currency, getPrimaryProductImage } from "@/lib/utils";
-import { accountService } from "@/services/account";
 import type { Product } from "@/types/api";
 
 export const ProductCard = ({
@@ -16,7 +16,9 @@ export const ProductCard = ({
   onWishlistAdded?: () => void;
 }) => {
   const { isAuthenticated } = useAuth();
+  const { isWishlisted, isUpdating, toggleWishlist } = useWishlist();
   const cover = getPrimaryProductImage(product.images);
+  const favorite = isWishlisted(product.id);
 
   return (
     <article className="group surface overflow-hidden">
@@ -67,14 +69,23 @@ export const ProductCard = ({
           {isAuthenticated ? (
             <button
               type="button"
-              className="rounded-full border border-slate-200 p-3 text-slate-500 transition hover:border-ember hover:text-ember dark:border-white/10 dark:text-slate-300"
+              className={`rounded-full border p-3 transition ${
+                favorite
+                  ? "border-ember bg-ember/10 text-ember"
+                  : "border-slate-200 text-slate-500 hover:border-ember hover:text-ember dark:border-white/10 dark:text-slate-300"
+              }`}
+              aria-label={favorite ? "Quitar de favoritos" : "Agregar a favoritos"}
+              aria-pressed={favorite}
+              disabled={isUpdating}
               onClick={() =>
-                void accountService.addToWishlist(product.id).then(() => {
-                  onWishlistAdded?.();
+                void toggleWishlist(product).then((added) => {
+                  if (added) {
+                    onWishlistAdded?.();
+                  }
                 })
               }
             >
-              <Heart size={16} />
+              <Heart size={16} className={favorite ? "fill-current" : ""} />
             </button>
           ) : null}
         </div>

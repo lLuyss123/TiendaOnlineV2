@@ -5,8 +5,19 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { StatusNotice } from "@/components/ui/StatusNotice";
 import { adminService } from "@/services/admin";
+import type { Coupon } from "@/types/api";
 
-const emptyCoupon = {
+type CouponFormState = {
+  codigo: string;
+  tipo: Coupon["tipo"];
+  valor: string;
+  maxUsos: string;
+  vencimiento: string;
+  activo: boolean;
+  descripcion: string;
+};
+
+const emptyCoupon: CouponFormState = {
   codigo: "",
   tipo: "PERCENTAGE",
   valor: "10",
@@ -14,7 +25,7 @@ const emptyCoupon = {
   vencimiento: "",
   activo: true,
   descripcion: ""
-} as const;
+};
 
 export const AdminCouponsPage = () => {
   const couponsQuery = useQuery({
@@ -26,7 +37,7 @@ export const AdminCouponsPage = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"info" | "success" | "error">("success");
-  const [form, setForm] = useState({ ...emptyCoupon });
+  const [form, setForm] = useState<CouponFormState>({ ...emptyCoupon });
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -98,7 +109,12 @@ export const AdminCouponsPage = () => {
             <select
               className="w-full rounded-full border border-slate-200 bg-white/90 px-4 py-3 dark:border-white/10 dark:bg-white/5"
               value={form.tipo}
-              onChange={(event) => setForm((current) => ({ ...current, tipo: event.target.value }))}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  tipo: event.target.value as CouponFormState["tipo"]
+                }))
+              }
             >
               <option value="PERCENTAGE">PERCENTAGE</option>
               <option value="FIXED_AMOUNT">FIXED_AMOUNT</option>
